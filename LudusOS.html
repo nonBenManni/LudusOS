@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LudusOS - Cloud Gaming OS</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+            position: relative;
+        }
+        h1 {
+            margin-bottom: 20px;
+            font-size: 2.5em;
+            letter-spacing: 1px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            width: 80%;
+            max-width: 1200px;
+        }
+        .card {
+            background-color: #1e1e1e;
+            border-radius: 10px;
+            padding: 20px;
+            transition: transform 0.3s;
+            cursor: pointer;
+            text-align: center;
+            border: 2px solid transparent;
+            height: 250px;
+        }
+        .card:hover, .active {
+            transform: scale(1.05);
+            border-color: #ff6200ee;
+        }
+        .card img {
+            max-width: 90%;
+            max-height: 120px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        .watermark {
+            position: fixed;
+            bottom: 10px;
+            font-size: 0.9em;
+            color: #ffffffaa;
+            width: 100%;
+            text-align: center;
+        }
+        .version {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 0.9em;
+            color: #ffffffaa;
+        }
+        .controller-name {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            font-size: 1em;
+            color: #ffffffaa;
+        }
+    </style>
+</head>
+<body>
+    <h1>LudusOS</h1>
+    <div class="controller-name" id="controllerName">No Controller Connected</div>
+    <div class="container" id="links">
+        <div class="card" data-url="https://play.geforcenow.com/">
+            <img src="https://www.theouterhaven.net/wp-content/uploads/2021/01/Nvidia-GeForce-Now-Logo.jpg" alt="GeForce NOW">
+            <h2>GeForce NOW</h2>
+        </div>
+        <div class="card" data-url="https://www.xbox.com/en-US/play">
+            <img src="https://assets-www.xbox.com/xbox-web/static/media/CloudGaming_LetterBox.scale-200.ef909bf4.png" alt="Xbox Cloud Gaming">
+            <h2>Xbox Cloud Gaming</h2>
+        </div>
+        <div class="card" data-url="https://www.playstation.com/en-us/ps-now/">
+            <img src="https://i.pcmag.com/imagery/reviews/01aNaoc1M3kOtwVWPTMD9ms-13..v1613593352.jpg" alt="PlayStation Now">
+            <h2>PlayStation Now</h2>
+        </div>
+        <div class="card" data-url="https://shadow.tech/en">
+            <img src="https://miro.medium.com/v2/resize:fit:2000/1*OdtVFq014LCg6yhY39oEUA.png" alt="Shadow">
+            <h2>Shadow</h2>
+        </div>
+        <div class="card" data-url="https://www.amazon.com/luna">
+            <img src="https://cdn.arstechnica.net/wp-content/uploads/2020/10/luna-logo-listing.png" alt="Amazon Luna">
+            <h2>Amazon Luna</h2>
+        </div>
+    </div>
+    <div class="watermark">Ben Manni 2024</div>
+    <div class="version">Version 1.0</div>
+
+    <script>
+        const cards = document.querySelectorAll('.card');
+        const controllerNameElem = document.getElementById('controllerName');
+        let currentIndex = 0;
+        let isMoving = false;
+        let moveDirection = 0;
+        let moveTimeout = null;
+        let canOpenLink = true;
+        let buttonPressed = false;
+
+        const defaultMappings = {
+            "Xbox Controller": { dpadLeft: 14, dpadRight: 15, aButton: 0 },
+            "PlayStation Controller": { dpadLeft: 14, dpadRight: 15, aButton: 0 },
+            "Generic Controller": { dpadLeft: 14, dpadRight: 15, aButton: 0 }
+        };
+        
+        let customMappings = JSON.parse(sessionStorage.getItem('customMappings')) || defaultMappings;
+
+        function updateActiveCard() {
+            cards.forEach((card, index) => {
+                card.classList.remove('active');
+                if (index === currentIndex) {
+                    card.classList.add('active');
+                }
+            });
+        }
+
+        function moveSelection() {
+            if (moveDirection !== 0) {
+                currentIndex = (currentIndex + moveDirection + cards.length) % cards.length;
+                updateActiveCard();
+            }
+            moveTimeout = setTimeout(moveSelection, isMoving ? 300 : 1000);
+        }
+
+        function handleGamepadInput() {
+            const gamepads = navigator.getGamepads();
+            const gp = gamepads[0];
+
+            if (gp) {
+                const config = customMappings[gp.id] || defaultMappings["Generic Controller"];
+                controllerNameElem.textContent = gp.id || "Generic Controller";
+
+                if (gp.buttons[config.dpadLeft].pressed) {
+                    if (!isMoving) {
+                        isMoving = true;
+                        moveDirection = -1;
+                        moveSelection();
+                    }
+                } else if (gp.buttons[config.dpadRight].pressed) {
+                    if (!isMoving) {
+                        isMoving = true;
+                        moveDirection = 1;
+                        moveSelection();
+                    }
+                } else {
+                    isMoving = false;
+                    moveDirection = 0;
+                    clearTimeout(moveTimeout);
+                }
+
+                if (gp.buttons[config.aButton].pressed && !buttonPressed) {
+                    buttonPressed = true;
+                    if (canOpenLink) {
+                        canOpenLink = false;
+                        const url = cards[currentIndex].getAttribute('data-url');
+                        if (url) window.open(url, '_blank');
+                    }
+                } else if (!gp.buttons[config.aButton].pressed) {
+                    buttonPressed = false;
+                    canOpenLink = true;
+                }
+            }
+            requestAnimationFrame(handleGamepadInput);
+        }
+
+        window.addEventListener('gamepadconnected', (event) => {
+            controllerNameElem.textContent = event.gamepad.id;
+            requestAnimationFrame(handleGamepadInput);
+        });
+
+        window.addEventListener('gamepaddisconnected', () => {
+            controllerNameElem.textContent = "No Controller Connected";
+        });
+
+    </script>
+</body>
+</html>
